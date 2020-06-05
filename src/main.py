@@ -28,32 +28,34 @@ def rand_matrix():
 def main():
     k = 100
     iterations = 100
+    runs = 10
+    isImg = False
 
-    isImg = True
-    if isImg:
-        step = 0.00002
-        M = read_image()
-        save_image = True
-    else:
-        M = rand_matrix()
-        step = 0.00001
-        save_image = False
+    for i in range(runs):
+        if isImg:
+            step = 0.00002
+            M = read_image()
+            save_image = (i == 0)
+        else:
+            M = rand_matrix()
+            step = 0.00001
+            save_image = False
 
-    print(M.shape)
-    names = []
-    objs = []
-    times = []
-    # SPGD(M, k, 0, False),
-    # BlockCoordinate(M, k, False)
-    for opt in [SPGD(M, k, 0, True), MultUpdate(M, k), BlockCoordinate(M, k, False), AO_ADMM(M, k, 'kl'), LeastSquares(M, k)]:
-        # for opt in [AO_ADMM(M, k, 'kl')]:
-        print(opt.name)
-        names.append(opt.name)
-        start_time = time.time()
-        objs.append(opt.optimize(step, iterations, save_image))
-        elapsed = time.time() - start_time
-        times.append(elapsed)
-        print("time", elapsed)
+        print(M.shape)
+        names = []
+        objs = []
+        times = []
+        # SPGD(M, k, 0, False),
+        # BlockCoordinate(M, k, False)
+        for opt in [SPGD(M, k, 0, True), MultUpdate(M, k), BlockCoordinate(M, k, False), AO_ADMM(M, k, 'kl'), LeastSquares(M, k)]:
+            # for opt in [AO_ADMM(M, k, 'kl')]:
+            print(opt.name)
+            names.append(opt.name)
+            start_time = time.time()
+            objs.append(opt.optimize(step, iterations, save_image))
+            elapsed = time.time() - start_time
+            times.append(elapsed)
+            print("time", elapsed)
 
     print(names)
     print(objs)
