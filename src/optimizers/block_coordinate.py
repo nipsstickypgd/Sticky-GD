@@ -1,30 +1,36 @@
 import numpy as np
+from torch import Tensor
+
 import utils
 from numpy import ndarray
 
+from optimizers.Optimizer import Optimizer
 
-class BlockCoordinate:
-    def __init__(self, M: ndarray, k: int, sticky: bool):
+
+class BlockCoordinate(Optimizer):
+    # def __init__(self, M: ndarray, k: int, step: float, sticky: bool):
+    def __init__(self, M: Tensor, k: int, step: float, sticky: bool):
         self.M = M
         self.k = k
+        self.step = step
         self.sticky = sticky
-        self.name = "Sticky Block Coordinate" if sticky else "Block Coordinate"
 
-    def optimize(self, step, iterations, save_image):
-        step /= 3
-        (n, m) = self.M.shape
+    def name(self):
+        return "Sticky Block Coordinate" if self.sticky else "Block Coordinate"
+
+    def short_name(self):
+        return 'block_coordinate'
+
+    def optimize(self, E, iterations):
         M = self.M
-        W = np.random.uniform(0, 1, (n, self.k))
-        H = np.random.uniform(0, 1, (self.k, m))
+        W, H = utils.init_wh(M, self.k)
         for i in range(iterations):
-            print(i, utils.objective(M, W, H))
+            print(i, utils.objective(M, W, H, E))
             pH = H
-            H = H + step * (W.transpose().dot(M) - W.transpose().dot(W).dot(H))
+            H = H + self.step * (W.T.mm(E * (M - W.mm(H))))
             H = utils.proj(H, pH, self.sticky)
             pW = W
-            W = W + step * (M.dot(H.transpose()) - W.dot(H).dot(H.transpose()))
+            W = W + self.step * ((E * (M - W.mm(H))).mm(H.T))
             W = utils.proj(W, pW, self.sticky)
-        if save_image:
-            utils.save_img(W.dot(H), 'block_coordinate')
-        print()
-        return utils.objective(M, W, H)
+
+        return W, H

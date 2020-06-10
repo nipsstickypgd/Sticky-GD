@@ -1,34 +1,41 @@
-import numpy as np
+from torch import Tensor
+
 import utils
-from numpy import ndarray
+
+from optimizers.Optimizer import Optimizer
 
 
-class SPGD:
-    def __init__(self, M: ndarray, k: int, momentum: float, sticky: bool):
+class SPGD(Optimizer):
+    def __init__(self, M: Tensor, k: int, step: float, sticky: bool):
+        # def __init__(self, M: ndarray, k: int, step: float, sticky: bool):
         self.M = M
         self.k = k
-        self.momentum = momentum
+        self.step = step
         self.sticky = sticky
-        self.name = "Sticky GD" if sticky else "PGD"
 
-    def grad(self, M: ndarray, W: ndarray, H: ndarray):
-        gW = (W.dot(H) - M).dot(H.transpose())
-        gH = W.transpose().dot(W.dot(H) - M)
-        return (gW, gH)
+    def name(self):
+        return "Sticky GD" if self.sticky else "PGD"
 
-    def optimize(self, step, iterations, save_image):
-        (n, m) = self.M.shape
+    def short_name(self):
+        return "sticky_gd" if self.sticky else "pgd"
+
+    def grad(self, M: Tensor, W: Tensor, H: Tensor, E: Tensor):
+        # def grad(self, M: ndarray, W: ndarray, H: ndarray):
+        gW = ((W.mm(H) - M) * E).mm(H.t())
+        gH = W.t().mm((W.mm(H) - M) * E)
+        # gW = (W.dot(H) - M).dot(H.transpose())
+        # gH = W.transpose().dot(W.dot(H) - M)
+        return gW, gH
+
+    def optimize(self, E: Tensor, iterations):
         M = self.M
-        W = np.random.uniform(0, 1, (n, self.k))
-        H = np.random.uniform(0, 1, (self.k, m))
+        W, H = utils.init_wh(M, self.k)
         for i in range(iterations):
-            print(i, utils.objective(M, W, H))
-            (gW, gH) = self.grad(M, W, H)
-            nW = np.random.normal(0, 0.1, (n, self.k))
-            nH = np.random.normal(0, 0.1, (self.k, m))
-            W = utils.proj(W - step * gW + nW, W, self.sticky)
-            H = utils.proj(H - step * gH + nH, H, self.sticky)
-        if save_image:
-            utils.save_img(W.dot(H), 'spgd')
-        print()
-        return utils.objective(M, W, H)
+            print(i, utils.objective(M, W, H, E))
+            (gW, gH) = self.grad(M, W, H, E)
+            # nW = np.random.normal(0, 0.01 * self.step, (n, self.k))
+            # nH = np.random.normal(0, 0.01 * self.step, (self.k, m))
+            W = utils.proj(W - self.step * gW, W, self.sticky)
+            H = utils.proj(H - self.step * gH, H, self.sticky)
+
+        return W, H

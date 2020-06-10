@@ -1,5 +1,5 @@
 """
-A modified version of https://github.com/raleng/nmf/blob/master/nmf/admm.py
+A modified version of https://github.com/raleng/nmf/blob/master/nmf/ao_admm.py
 """
 import numpy as np
 from numpy import ndarray
@@ -8,24 +8,27 @@ import scipy.linalg as la
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
 import utils
+from optimizers.Optimizer import Optimizer
 
 
-class ADMM:
+class AO_ADMM_OTHERS(Optimizer):
     def __init__(self, M: ndarray, k: int, distance_type: str):
         self.M = M
         self.k = k
-        self.name = "ADMM"
         if distance_type in ['eu', 'kl']:
             self.distance_type = distance_type
         else:
             raise TypeError('Unknown loss type ' + distance_type)
 
+    def name(self):
+        return "AO-ADMM"
+
+    def short_name(self):
+        return "ao_admm"
+
     def optimize(self, iterations):
-        (n, m) = self.M.shape
         M = self.M
-        k = self.k
-        w = np.abs(np.random.randn(n, k))
-        h = np.abs(np.random.randn(k, m))
+        w, h = utils.init_wh(M, self.k)
         distance_type = self.distance_type
         w_aux = w.copy()
         h_aux = h.copy()
@@ -70,8 +73,8 @@ class ADMM:
 
             dual_h = dual_h + h - h_aux
             dual_w = dual_w + w - w_aux
-        print()
-        return utils.objective(M, w, h)
+
+        return w, h
 
 
 def admm_ls_update(y, w, h, dual, k, prox_type='nn', *, admm_iter=10, lambda_=0):

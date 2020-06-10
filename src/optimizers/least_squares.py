@@ -1,57 +1,55 @@
 import numpy as np
+import torch
+from torch import Tensor
+
 import utils
 from numpy import ndarray
 import sklearn
 
+from optimizers.Optimizer import Optimizer
 
-class LeastSquares:
-    def __init__(self, M: ndarray, k: int):
+
+class LeastSquares(Optimizer):
+    # def __init__(self, M: ndarray, k: int):
+    def __init__(self, M: Tensor, k: int):
         self.M = M
         self.k = k
-        self.name = "HALS"
 
-    def optimize(self, step, iterations, save_image):
-        (n, m) = self.M.shape
+    def name(self):
+        return "HALS"
+
+    def short_name(self):
+        return "hals"
+
+    def optimize(self, E, iterations):
         M = self.M
-        W = np.random.uniform(0, 1, (n, self.k))
-        H = np.random.uniform(0, 1, (self.k, m))
+        W, H = utils.init_wh(M, self.k)
         for j in range(self.k):
-            W[:, j] = W[:, j] / np.linalg.norm(W[:, j])
-            H[j, :] = H[j, :] / np.linalg.norm(H[j, :])
+            W[:, j] = W[:, j] / torch.norm(W[:, j])
+            H[j, :] = H[j, :] / torch.norm(H[j, :])
+
         for i in range(iterations):
-            print(i, utils.objective(M, W, H))
-            E: ndarray = M - W.dot(H)
+            print(i, utils.objective(M, W, H, E))
+            Dif = E * (M - W.mm(H))
             for j in range(self.k):
-                # print(W[:, j])
-                # print(H[j, :])
-                # E = E + W[:, j].dot(H[j, :].transpose())
                 uj = W[:, j]
                 vj = H[j, :]
-                E = E + uj.reshape(len(uj), 1).dot(vj.reshape(1, len(vj)))
-                # E = M - W.dot(H) + uj.reshape(len(uj), 1).dot(vj.reshape(1, len(vj)))
+                Dif = Dif + uj.reshape(-1, 1).mm(vj.reshape(1, -1))
 
-                u_nom = E.transpose().dot(uj).clip(0)
-                if np.linalg.norm(u_nom) > 1e-18:
-                    vj = u_nom / (np.linalg.norm(uj) ** 2)
+                u_nom = Dif.t().mv(uj).clamp_min(0)
+                if torch.norm(u_nom) > 1e-18:
+                    vj = u_nom / (torch.norm(uj) ** 2)
                 else:
-                    vj = np.zeros_like(vj)
+                    vj = torch.zeros_like(vj)
 
-                v_nom = E.dot(vj).clip(0)
-                if np.linalg.norm(v_nom) > 1e-18:
-                    uj = v_nom / (np.linalg.norm(vj) ** 2)
+                v_nom = Dif.mv(vj).clamp_min(0)
+                if torch.norm(v_nom) > 1e-18:
+                    uj = v_nom / (torch.norm(vj) ** 2)
                 else:
-                    uj = np.zeros_like(uj)
+                    uj = torch.zeros_like(uj)
                 W[:, j] = uj
                 H[j, :] = vj
 
-                # W[:, j] = W[:, j] / np.linalg.norm(W[:, j])
-                E = E - uj.reshape(len(uj), 1).dot(vj.reshape(1, len(vj)))
-        # for i in range(iterations):
-        #     A = M.dot(H)
-        #     B = H.dot(H.transpose())
-        #     for j in range(self.k):
+                Dif = Dif - uj.reshape(-1, 1).mm(vj.reshape(1, -1))
 
-        if save_image:
-            utils.save_img(W.dot(H), 'hals')
-        print()
-        return utils.objective(M, W, H)
+        return W, H

@@ -1,61 +1,58 @@
-import numpy as np
+from typing import List
 
+import numpy as np
+import torch
+
+import utils
+from datasets.TextDataset import TextDataset
+from optimizers.Optimizer import Optimizer
 from optimizers.ao_admm import AO_ADMM
 from optimizers.block_coordinate import BlockCoordinate
 from optimizers.least_squares import LeastSquares
 from optimizers.spgd import SPGD
 from optimizers.mult_update import MultUpdate
-from skimage.io import imread
 import time
-
-from PIL import Image
-
-img = Image.open('data/kodak.png').convert('LA')
-img.save('data/kodak_gray.png')
-
-
-def read_image():
-    img = imread('data/kodak_gray.png')
-    return img[:, :, 0]
-
-
-def rand_matrix():
-    n = 1000
-    m = 1000
-    return np.random.uniform(0, 100, (n, m))
 
 
 def main():
-    k = 100
-    iterations = 100
     runs = 10
-    isImg = False
+    # ds = RandomDataset()
+    # ds = ImageDataset()
+    ds = TextDataset()
+    # ds = RecommendationDataset()
+    k = ds.k()
 
-    for i in range(runs):
-        if isImg:
-            step = 0.00002
-            M = read_image()
-            save_image = (i == 0)
-        else:
-            M = rand_matrix()
-            step = 0.00001
-            save_image = False
+    for run in range(runs):
+        step = ds.step(run)
+        # M = torch.from_numpy(ds.generate(run)).float().to(device)
+        M, E = ds.generate(run)
+        M = utils.to_tensor(M)
+        E = utils.to_tensor(E)
+        # M = ds.generate(run)
 
         print(M.shape)
         names = []
         objs = []
         times = []
-        # SPGD(M, k, 0, False),
-        # BlockCoordinate(M, k, False)
-        for opt in [SPGD(M, k, 0, True), MultUpdate(M, k), BlockCoordinate(M, k, False), AO_ADMM(M, k, 'kl'), LeastSquares(M, k)]:
-            # for opt in [AO_ADMM(M, k, 'kl')]:
-            print(opt.name)
-            names.append(opt.name)
+
+        algorithms: List[Optimizer] = [
+            SPGD(M, k, step, True),
+            MultUpdate(M, k),
+            BlockCoordinate(M, k, step, False),
+            AO_ADMM(M, k),
+            LeastSquares(M, k)
+        ]
+        for opt in algorithms:
+            print(opt.name())
+            names.append(opt.name())
             start_time = time.time()
-            objs.append(opt.optimize(step, iterations, save_image))
+            W, H = opt.optimize(E, ds.iterations())
+            print()
+            objs.append(utils.objective(M, W, H, E))
             elapsed = time.time() - start_time
             times.append(elapsed)
             print("time", elapsed)
+            ds.postprocess(W, H, run, opt.short_name())
 
     print(names)
     print(objs)
