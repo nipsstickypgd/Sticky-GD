@@ -6,5 +6,6 @@ import numpy as np
 
 def read_image(name):
     img = Image.open(data_folder + 'images/' + name + ".png").convert('LA')
+    # img = Image.open(data_folder + 'training-originals/' + name + ".jpg").convert('LA')
     img.save(temp_folder + name + '_gray.png')
     return np.array(img)[:, :, 0]

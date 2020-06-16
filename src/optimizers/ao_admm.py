@@ -38,7 +38,8 @@ def admm_H_update(M: Tensor, W: Tensor, H: Tensor, U: Tensor, E:Tensor, k, *, ad
     g = W.T.mm(W)
     rho = torch.trace(g) / k
     L = torch.cholesky(g + rho * torch.eye(g.shape[0], device=device))
-    F = W.T.mm((M - W.mm(H)) * E + W.mm(H))  # TODO
+    WmH = W.mm(H)
+    F = W.T.mm((M - WmH) * E + WmH)
 
     for i in range(admm_iter):
         H_aux = torch.cholesky_solve(F + rho * (H + U), L)
@@ -56,7 +57,8 @@ def admm_W_update(M: Tensor, W: Tensor, H: Tensor, V: Tensor, E:Tensor, k, *, ad
     g = H.mm(H.T)
     rho = torch.trace(g) / k
     L = torch.cholesky(g + rho * torch.eye(g.shape[0], device=device))
-    F = ((M - W.mm(H)) * E + W.mm(H)).mm(H.T) # TODO
+    WmH = W.mm(H)
+    F = ((M - WmH) * E + WmH).mm(H.T)
 
     for i in range(admm_iter):
         W_aux = torch.cholesky_solve((F + rho * (W + V)).T, L).T

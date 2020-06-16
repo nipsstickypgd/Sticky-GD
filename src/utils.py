@@ -10,6 +10,7 @@ from torch import Tensor
 
 def frob_norm(M: Tensor) -> float:
     return torch.norm(M, 'fro').item()
+    # return torch.norm(M).item()
 
 
 def objective(M: Tensor, W: Tensor, H: Tensor, E: Tensor) -> float:

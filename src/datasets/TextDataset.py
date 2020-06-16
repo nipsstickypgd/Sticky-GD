@@ -27,7 +27,8 @@ class TextDataset(Dataset):
         print("Precision:", precision)
 
     def step(self, iteration):
-        return 0.05
+        # return 0.05
+        return 0.01
 
     def iterations(self):
         return 100

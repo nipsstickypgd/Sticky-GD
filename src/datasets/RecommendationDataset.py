@@ -42,6 +42,7 @@ class RecommendationDataset(Dataset):
 
     def step(self, iteration):
         return 1e-4
+        # return 1e-3
 
     def iterations(self):
         return 200
